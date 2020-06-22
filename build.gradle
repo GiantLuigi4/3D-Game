@@ -1,0 +1,46 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'org.openjfx.javafxplugin' version '0.0.8'
+}
+
+group 'org.example'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    jcenter()
+    maven {
+        url = "http://maven.jzy3d.org/releases"
+    }
+}
+
+dependencies {
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+
+    //JFX
+    implementation 'org.fxyz3d:fxyz3d:0.5.2'
+    implementation 'org.fxyz3d:fxyz3d-importers:0.5.2'
+    implementation 'org.fxyz3d:fxyz3d-client:0.5.2'
+
+    //ASM
+    implementation 'org.ow2.asm:asm-all:6.0_BETA'
+    implementation 'org.ow2.asm:asm:8.0.1'
+    implementation 'org.ow2.asm:asm-util:8.0.1'
+    implementation 'org.ow2.asm:asm-tree:8.0.1'
+    implementation 'org.ow2.asm:asm-test:8.0.1'
+    implementation 'org.ow2.asm:asm-commons:8.0.1'
+    implementation 'org.ow2.asm:asm-analysis:8.0.1'
+    implementation 'org.ow2.asm:asm-deprecated:7.1'
+    implementation 'org.ow2.asm:asm-xml:6.2.1'
+    implementation 'org.ow2.asm:asm-debug-all:6.0_BETA'
+    implementation 'org.ow2.asm:asm-parent:6.0_BETA'
+
+    // https://mvnrepository.com/artifact/org.apache.bcel/bcel
+    implementation group: 'org.apache.bcel', name: 'bcel', version: '6.0'
+}
+
+javafx {
+    version = "14"
+    modules = [ 'javafx.controls' ]
+}
