@@ -12,6 +12,8 @@ public class Model {
 		return elements;
 	}
 	
+	public Model(){}
+	
 	public Model(ModelElement... elements) {
 		this.addElements(elements);
 	}

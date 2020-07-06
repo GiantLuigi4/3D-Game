@@ -1,11 +1,48 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        jcenter()
+        maven {
+            url = "http://maven.jzy3d.org/releases"
+        }
+    }
+
+    dependencies {
+        //JFX
+        classpath 'org.fxyz3d:fxyz3d:0.5.2'
+        classpath 'org.fxyz3d:fxyz3d-importers:0.5.2'
+        classpath 'org.fxyz3d:fxyz3d-client:0.5.2'
+
+        //ASM
+        classpath 'org.ow2.asm:asm-all:6.0_BETA'
+        classpath 'org.ow2.asm:asm:8.0.1'
+        classpath 'org.ow2.asm:asm-util:8.0.1'
+        classpath 'org.ow2.asm:asm-tree:8.0.1'
+        classpath 'org.ow2.asm:asm-test:8.0.1'
+        classpath 'org.ow2.asm:asm-commons:8.0.1'
+        classpath 'org.ow2.asm:asm-analysis:8.0.1'
+        classpath 'org.ow2.asm:asm-deprecated:7.1'
+        classpath 'org.ow2.asm:asm-xml:6.2.1'
+        classpath 'org.ow2.asm:asm-debug-all:6.0_BETA'
+        classpath 'org.ow2.asm:asm-parent:6.0_BETA'
+
+        classpath "org.openjfx:javafx-base:11:win"
+        classpath "org.openjfx:javafx-graphics:11:win"
+        classpath "org.openjfx:javafx-controls:11:win"
+
+        // https://mvnrepository.com/artifact/org.apache.bcel/bcel
+        classpath group: 'org.apache.bcel', name: 'bcel', version: '6.0'
+    }
+}
+
 plugins {
     id 'java'
     id 'application'
-    id 'org.openjfx.javafxplugin' version '0.0.8'
+//    id 'org.openjfx.javafxplugin' version '0.0.8'
 }
 
 group 'org.example'
-version '1.0-SNAPSHOT'
+version '1.0'
 
 repositories {
     mavenCentral()
@@ -14,6 +51,8 @@ repositories {
         url = "http://maven.jzy3d.org/releases"
     }
 }
+
+sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '11' // Need this here so eclipse task generates correctly.
 
 dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.12'
@@ -36,11 +75,40 @@ dependencies {
     implementation 'org.ow2.asm:asm-debug-all:6.0_BETA'
     implementation 'org.ow2.asm:asm-parent:6.0_BETA'
 
+    implementation "org.openjfx:javafx-base:11:win"
+    implementation "org.openjfx:javafx-graphics:11:win"
+    implementation "org.openjfx:javafx-controls:11:win"
+
     // https://mvnrepository.com/artifact/org.apache.bcel/bcel
     implementation group: 'org.apache.bcel', name: 'bcel', version: '6.0'
 }
 
-javafx {
-    version = "14"
-    modules = [ 'javafx.controls' ]
+//javafx {
+//    version = "11"
+//    modules = [ 'javafx.controls' ]
+//}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'launcher.Launch'
+    }
+    from {
+        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+    }
 }
+
+def moduleName = 'untitled13.game'
+
+//compileJava {
+//    inputs.property("moduleName", moduleName)
+//    doFirst {
+//        options.compilerArgs = [
+//                '--module-path', classpath.asPath,
+//                '--add-modules', 'javafx.controls'
+//        ]
+//        classpath = files()
+//    }
+//}
+
+applicationName = 'my-app'
+mainClassName = "launcher.Launch"

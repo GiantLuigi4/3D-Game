@@ -1,46 +1,44 @@
 package game;
 
+import API.model.lighting.LightNode;
+import API.utils.StringyHashMap;
+
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class World {
-	HashMap<BlockPos,Block> blocks=new HashMap<>();
-	HashMap<BlockPos,Block> needsRefresh=new HashMap<>();
+	StringyHashMap<ChunkPos,Chunk> chunks=new StringyHashMap<>();
+	ArrayList<ChunkPos> needsRefresh=new ArrayList<>();
+	
+	public final ArrayList<LightNode> lights=new ArrayList<>();
+	
+	public Chunk getChunk(BlockPos pos) {
+		ChunkPos pos1=new ChunkPos(pos);
+		if (!chunks.containsKey(pos1)) {
+			chunks.addOrReplace(pos1,new Chunk(pos1,this));
+			System.out.println("missing chunk at pos:"+pos1);
+		}
+		return chunks.get(pos1);
+	}
 	
 	public void setBlock(BlockPos pos,Block block) {
-		if (blocks.containsKey(pos)) {
-			blocks.replace(pos,block);
-		} else {
-			blocks.put(pos,block);
-		}
-		for (int x=-1;x<=1;x++) {
-			for (int y=-1;y<=1;y++) {
-				for (int z=-1;z<=1;z++) {
-					BlockPos pos1=new BlockPos(pos.x+x,pos.y+y,pos.z+z);
-					if (blocks.containsKey(pos1)&&!pos1.equals(pos))
-						needsRefresh.put(pos1,this.getBlock(pos1));
-					if (pos.equals(pos1))
-						needsRefresh.put(pos1,block);
-				}
-			}
-		}
+		Block bk=getChunk(pos).getBlock(pos);
+		if (bk!=null) bk.onRemove(this);
+		if (!needsRefresh.contains(getChunk(pos).pos))
+		needsRefresh.add(getChunk(pos).pos);
+		getChunk(pos).setBlock(pos,block);
+		block.onPlace(this);
 	}
 	
 	public void removeBlock(BlockPos pos) {
-		if (blocks.containsKey(pos)) blocks.remove(pos);
-		for (int x=-1;x<=1;x++) {
-			for (int y=-1;y<=1;y++) {
-				for (int z=-1;z<=1;z++) {
-					BlockPos pos1=new BlockPos(pos.x+x,pos.y+y,pos.z+z);
-					if (blocks.containsKey(pos1)&&!pos1.equals(pos))
-						needsRefresh.put(pos1,this.getBlock(pos1));
-					if (pos.equals(pos1))
-						needsRefresh.put(pos1,null);
-				}
-			}
-		}
+		Block bk=getChunk(pos).getBlock(pos);
+		if (bk!=null) bk.onRemove(this);
+		if (!needsRefresh.contains(getChunk(pos).pos))
+		needsRefresh.add(getChunk(pos).pos);
+		getChunk(pos).setBlock(pos,null);
 	}
 	
 	public Block getBlock(BlockPos pos) {
-		return blocks.getOrDefault(pos,null);
+		return getChunk(pos).getBlock(pos);
 	}
 }

@@ -29,4 +29,7 @@ public class Block {
 		return new Model(new Cube(1));
 		return null;
 	}
+	
+	public void onPlace(World world) {}
+	public void onRemove(World world) {}
 }

@@ -16,11 +16,11 @@ public class Loader extends ClassLoader {
 		classes.putIfAbsent(name,this.defineClass(name, bytes, 0, bytes.length));
 		return classes.get(name);
 	}
-	
+
 	HashMap<String,Class> classes=new HashMap<>();
-	
+
 	String path=GameInstance.gameDir.toString()+"\\mods";
-	
+
 	public void setPath(String path) {
 		this.path=path;
 		File file=new File(path);
@@ -28,7 +28,7 @@ public class Loader extends ClassLoader {
 			if (!file.exists()) file.createNewFile();
 		} catch (Throwable err) {}
 	}
-	
+
 	@Override
 	public Class<?> loadClass(String name) throws ClassNotFoundException {
 		Class c=null;
@@ -39,7 +39,9 @@ public class Loader extends ClassLoader {
 			try {
 				InputStream stream1=null;
 				if (c==null) {
-					stream1=new ClassPath(path).getClassFile("test2").getInputStream();
+					stream1=
+//					null;
+							new ClassPath(path).getClassFile("test2").getInputStream();
 				}
 				try {
 					if (stream1!=null) {
@@ -64,7 +66,7 @@ public class Loader extends ClassLoader {
 		if (c!=null) return c;
 		return this.findClass(name);
 	}
-	
+
 	public Class trimAndDefine(byte[] bytes) {
 		boolean tooLong=true;
 		int offset=0;
@@ -79,7 +81,7 @@ public class Loader extends ClassLoader {
 		}
 		return null;
 	}
-	
+
 	@Override
 	protected Class<?> findClass(String name) throws ClassNotFoundException {
 		Class c=null;
@@ -102,13 +104,13 @@ public class Loader extends ClassLoader {
 		}
 		return c;
 	}
-	
+
 	@Override
 	protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
 		this.resolveClass(this.loadClass(name));
 		return this.findClass(name);
 	}
-	
+
 	public Class<?> loadClassfile(String name, boolean resolve) throws ClassNotFoundException {
 		return this.loadClass(name,resolve);
 	}

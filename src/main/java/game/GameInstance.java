@@ -1,12 +1,12 @@
 package game;
 
 import API.model.elements.Box;
-import API.model.elements.Cube;
 import API.utils.ImageLookup;
 import API.event.EventBus;
-import API.event.entity.tick.TestCollisionEvent;
 import API.event.renderer.CollectModelsEvent;
 import API.model.Model;
+import API.utils.MathHelper;
+import API.utils.StringyHashMap;
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
 import javafx.geometry.Point2D;
@@ -14,22 +14,25 @@ import javafx.geometry.Point3D;
 import javafx.scene.*;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.effect.*;
 import javafx.scene.image.Image;
-import javafx.scene.input.KeyCode;
-import javafx.scene.input.KeyEvent;
-import javafx.scene.input.MouseDragEvent;
-import javafx.scene.input.MouseEvent;
+import javafx.scene.image.ImageView;
+import javafx.scene.input.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.Material;
 import javafx.scene.paint.PhongMaterial;
+import javafx.scene.shape.DrawMode;
 import javafx.stage.Stage;
+import org.fxyz3d.geometry.Vector3D;
+import org.fxyz3d.shapes.primitives.SegmentedSphereMesh;
 import org.fxyz3d.utils.CameraTransformer;
 
-import java.awt.*;
+import java.awt.Robot;
 import java.io.File;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class GameInstance extends Application {
 	public static final int DispalyWidth=600;
@@ -43,16 +46,23 @@ public class GameInstance extends Application {
 	
 	public static Stage stage;
 	
-	public static final String gameDir=System.getProperty("user.dir");
+	public static String gameDir=System.getProperty("user.dir");
+	
+	public static final boolean devEnvro=!(gameDir.endsWith("\\bin"));
 	
 	public static final CameraTransformer cameraTransform = new CameraTransformer(CameraTransformer.RotateOrder.XYZ);
 	
-	public static final HashMap<BlockPos,Model> blocks=new HashMap<>();
+	public static final StringyHashMap<BlockPos,Model> blocks=new StringyHashMap<>();
 	public static final ArrayList<Model> entities=new ArrayList<>();
 	
 	public static final Group group = new Group(cameraTransform);
-	
 	public static final Scene scene = new Scene(group, DispalyWidth, DispalyHeight, true, SceneAntialiasing.DISABLED);
+	
+	public static final CameraTransformer inverseCameraTransform = new CameraTransformer(CameraTransformer.RotateOrder.XYZ);
+	private static final PerspectiveCamera inversePlayer=new PerspectiveCamera();
+	
+	public static final Group group2 = inverseCameraTransform;
+	private static final SubScene UIScene=new SubScene(group2,scene.getWidth(),scene.getHeight(),false,SceneAntialiasing.DISABLED);
 	
 	public static final Canvas canvas = new Canvas(DispalyWidth, DispalyHeight);
 	
@@ -70,8 +80,28 @@ public class GameInstance extends Application {
 	
 	public static final PlayerClient player=new PlayerClient();
 	
+	private static Date lastMouseMove=new Date();
+	
 	public static void loop() {
+		
+		int numbernumber=0;
+		
+		if (stage.isFocused()) {
+			if (new Date().getTime()-5>=lastMouseMove.getTime()) {
+				long i=new Date().getTime();
+				r.waitForIdle();
+				centerX=(int)(stage.getX()+(stage.getWidth()/2f));
+				centerY=(int)(stage.getY()+(stage.getHeight()/2f));
+				r.mouseMove(centerX,centerY);
+				lastMouseMove=new Date();
+//				System.out.println(new Date().getTime()-i);
+			}
+		}
+		
+		TickMethods.tickClientPlayer(cameraTransform,player,keys,world);
+		
 		group.getChildren().clear();
+		
 		ArrayList<Node> allNodes=new ArrayList<>();
 		
 		ArrayList<Model> models=new ArrayList<>();
@@ -81,27 +111,71 @@ public class GameInstance extends Application {
 		CollectModelsEvent.Pre eventPre=new CollectModelsEvent.Pre(models);
 		bus.post(eventPre);
 		AtomicInteger intdex= new AtomicInteger();
-		world.needsRefresh.values().iterator().forEachRemaining((b)->{
-			if (b!=null) {
-				Model mdl=b.getModel(world,b.pos);
-				if (mdl!=null) {
-					if (!blocks.containsKey(b.pos)) {
-						blocks.put(b.pos,mdl);
-					} else {
-						blocks.replace(b.pos,mdl);
-					}
-				} else {
-					blocks.remove(b.pos);
-				}
-			} else {
-				blocks.remove(world.needsRefresh.keySet().toArray()[intdex.get()]);
+//		world.needsRefresh.values().iterator().forEachRemaining((b)->{
+//			if (b!=null) {
+//				Model mdl=b.getModel(world,b.pos);
+//				if (mdl!=null) {
+//					mdl.getAllElements().forEach((e)->{
+//						for (Node nd:e.getNodes()) {
+//							if (nd instanceof javafx.scene.shape.Box) {
+//								Material mat=((javafx.scene.shape.Box) nd).getMaterial();
+//								if (mat instanceof PhongMaterial) {
+//									AtomicReference<Double> red= new AtomicReference<>((double) 0);
+//									AtomicReference<Double> green= new AtomicReference<>((double) 0);
+//									AtomicReference<Double> blue= new AtomicReference<>((double) 0);
+//									world.lights.forEach((l)->{
+//										double intense=(l.intensity*15);
+//										double brightness=Math.max(0,(((Math.abs(Math.max(l.intensity,Math.abs(l.getDistanceTo(new Vector3D(b.pos.x, b.pos.y, b.pos.z))))))/intense)));
+////											System.out.println(brightness);
+//										red.set(Math.max(red.get(),MathHelper.Lerp(brightness, red.get(), l.r)));
+//										green.set(Math.max(green.get(),MathHelper.Lerp(brightness, green.get(), l.g)));
+//										blue.set(Math.max(blue.get(),MathHelper.Lerp(brightness, blue.get(), l.b)));
+////											System.out.println(l.getDistanceTo(new Vector3D(b.pos.x, b.pos.y, b.pos.z)));
+//									});
+//									if (world.lights.size()==0) {
+//										((PhongMaterial) mat).setDiffuseColor(Color.color(
+//												red.get(),
+//												green.get(),
+//												blue.get()
+//										));
+//									} else {
+//										((PhongMaterial) mat).setDiffuseColor(Color.color(
+//												Math.max(0,Math.min(1,red.get())),
+//												Math.max(0,Math.min(1,green.get())),
+//												Math.max(0,Math.min(1,blue.get()))
+//										));
+//									}
+//								}
+//							}
+//						}
+//					});
+//					if (!blocks.containsKey(b.pos)) {
+//						blocks.put(b.pos,mdl);
+//					} else {
+//						blocks.replace(b.pos,mdl);
+//					}
+//				} else {
+//					blocks.remove(b.pos);
+//				}
+//			} else {
+//				blocks.remove(world.needsRefresh.keySet().toArray()[intdex.get()]);
+//			}
+//			intdex.getAndIncrement();
+//		});
+//		world.needsRefresh.forEach((cp)->{
+//			blocks.put(cp.blockPos,world.chunks.get(cp).bakeModel());
+//		});
+//		world.needsRefresh.clear();
+		for (int i=0;i<=32;i++) {
+			if (world.needsRefresh.size()>=1) {
+				try {
+					blocks.addOrReplace(world.needsRefresh.get(0).blockPos,world.chunks.get(world.needsRefresh.get(0)).bakeModel());
+				} catch (Throwable err) {}
+				world.needsRefresh.remove(0);
 			}
-			intdex.getAndIncrement();
-		});
-		world.needsRefresh.clear();
-		models.addAll(blocks.values());
+		}
+		models.addAll(blocks.objects);
 		models.addAll(entities);
-		Box bx=new Box(1,1,2);
 		double xoff=Math.cos(Math.toRadians(-cameraTransform.ry.getAngle()+90));
 		double yoff=Math.cos(Math.toRadians(cameraTransform.rx.getAngle()+90));
 		double yoff2=Math.sin(Math.toRadians(cameraTransform.rx.getAngle()+90));
@@ -115,15 +189,16 @@ public class GameInstance extends Application {
 		PhongMaterial mat=new PhongMaterial();
 		mat.setDiffuseColor(Color.BLACK);
 		mat.setSpecularColor(Color.BLACK);
-		for (double i=0;i<=16;i+=0.1) {
+		for (double i=0;i<=8;i+=0.1) {
 			double xsearch=player.getX()+(xoff*(Math.abs(yoff2)))*i;
-			double ysearch=(player.getY()+yoff*i)-player.getHeight()/2f+0.5f;
+			double ysearch=player.getY()+yoff*i-0.5f;
 			double zsearch=player.getZ()+(zoff*(Math.abs(yoff2)))*i;
 			boolean negativeX=!(xsearch>=0);
 			boolean negativeZ=!(zsearch>=0);
 			xsearch+=(negativeX?-0.5f:0.5);
 			zsearch+=(negativeZ?-0.5f:0.5);
-			if (world.blocks.containsKey(new BlockPos((int)xsearch,(int)-ysearch,(int)zsearch))) {
+			BlockPos posCheck=new BlockPos((int)xsearch,(int)-ysearch,(int)zsearch);
+			if (world.getChunk(posCheck).getBlock(posCheck)!=null) {
 				Box cb=new Box(0.01f,1,0.01f);
 				Box cb2=new Box(0.01f,1,0.01f);
 				Box cb3=new Box(0.01f,0.01f,1);
@@ -164,156 +239,156 @@ public class GameInstance extends Application {
 				break;
 			}
 		}
+		
+		int skyboxSize=256;
+		
+		PhongMaterial skymaterial=new PhongMaterial();
+		skymaterial.setDiffuseMap(ImageLookup.images.get("game:sky_day"));
+		SegmentedSphereMesh sphereMesh=new SegmentedSphereMesh(64,0,0,-(skyboxSize),new org.fxyz3d.geometry.Point3D(0,0,0));
+		sphereMesh.setDrawMode(DrawMode.FILL);
+		sphereMesh.setBlendMode(BlendMode.OVERLAY);
+		sphereMesh.setMaterial(skymaterial);
+		sphereMesh.setTranslateX(player.getX()*numbernumber);
+		sphereMesh.setTranslateY(player.getY()*numbernumber);
+		sphereMesh.setTranslateZ(player.getZ()*numbernumber);
+		sphereMesh.setRotate(180);
+		sphereMesh.setEffect(new ImageInput(mat.getDiffuseMap()));
+		sphereMesh.setOpacity(1);
+		allNodes.add(sphereMesh);
+		
 		CollectModelsEvent.Post eventPost=new CollectModelsEvent.Post(models);
 		bus.post(eventPost);
 		
 		models.forEach((m)->m.getAllElements().forEach((m2)->allNodes.addAll(Arrays.asList(m2.getNodes()))));
-
-		boolean firstInput=true;
 		
-		group.getChildren().addAll(allNodes);
-		if (keys.getOrDefault(KeyCode.W,false)) {
-			double xRot=cameraTransform.ry.getAngle();
-			float speed=0.1f;
-			player.setMotionX((Math.cos(Math.toRadians(xRot+90))*-speed));
-			player.setMotionZ((Math.sin(Math.toRadians(xRot+90))*speed));
-			firstInput=false;
-		}
-		if (keys.getOrDefault(KeyCode.S,false)) {
-			double xRot=cameraTransform.ry.getAngle();
-			float speed=0.1f;
-			double xMot=(Math.cos(Math.toRadians(xRot+90))*speed);
-			double zMot=(Math.sin(Math.toRadians(xRot+90))*-speed);
-			if (firstInput) {
-				player.setMotionX(xMot);
-				player.setMotionZ(zMot);
+		group2.setTranslateX(player.getX());
+		group2.setTranslateY(player.getY());
+		group2.setTranslateZ(player.getZ());
+		group2.setRotationAxis(cameraTransform.getRotationAxis());
+		group2.setRotate(cameraTransform.getRotate());
+		
+		inverseCameraTransform.setRotateX(cameraTransform.rx.getAngle());
+		inverseCameraTransform.setRotateY(cameraTransform.ry.getAngle());
+		inverseCameraTransform.setRotateZ(cameraTransform.rz.getAngle());
+		
+		group2.getChildren().clear();
+		Glow g=new Glow(1);
+		for (int i=0;i<=9;i++) {
+			ImageView imageView = new ImageView(ImageLookup.images.get("game:hotbar"));
+			imageView.setSmooth(false);
+			imageView.setEffect(g);
+			imageView.setScaleX(0.1f);
+			imageView.setScaleY(0.1f);
+			if (hotbarSlot==i) {
+				imageView.setTranslateZ(12);
+				imageView.setScaleX(0.11f);
+				imageView.setScaleY(0.11f);
 			} else {
-				player.push(xMot,0,zMot);
+				imageView.setTranslateZ(12);
 			}
-			firstInput=false;
-		}
-		if (keys.getOrDefault(KeyCode.D,false)) {
-			double xRot=cameraTransform.ry.getAngle();
-			float speed=0.1f;
-			double xMot=((Math.cos(Math.toRadians(xRot))*speed));
-			double zMot=((Math.sin(Math.toRadians(xRot))*-speed));
-			if (firstInput) {
-				player.setMotionX(xMot);
-				player.setMotionZ(zMot);
-			} else {
-				player.push(xMot,0,zMot);
+			imageView.setTranslateX(-14+i*1.55);
+			imageView.setTranslateY(2.65);
+			Item item=null;
+			if (blockslist.size()>i) {
+				item=blockslist.get(i);
 			}
-			firstInput=false;
-		}
-		if (keys.getOrDefault(KeyCode.A,false)) {
-			double xRot=cameraTransform.ry.getAngle();
-			float speed=0.1f;
-			double xMot=((Math.cos(Math.toRadians(xRot))*-speed));
-			double zMot=((Math.sin(Math.toRadians(xRot))*speed));
-			if (firstInput) {
-				player.setMotionX(xMot);
-				player.setMotionZ(zMot);
-			} else {
-				player.push(xMot,0,zMot);
-			}
-			firstInput=false;
-		}
-		if (keys.getOrDefault(KeyCode.UP,false)) {
-			double angle=cameraTransform.rx.getAngle();
-			float speed=1;
-			cameraTransform.setRotateX(angle+speed);
-		}
-		if (keys.getOrDefault(KeyCode.DOWN,false)) {
-			double angle=cameraTransform.rx.getAngle();
-			float speed=-1;
-			cameraTransform.setRotateX(angle+speed);
-		}
-		if (keys.getOrDefault(KeyCode.RIGHT,false)) {
-			double angle=cameraTransform.ry.getAngle();
-			float speed=1;
-			cameraTransform.setRotateY(angle+speed);
-		}
-		if (keys.getOrDefault(KeyCode.LEFT,false)) {
-			double angle=cameraTransform.ry.getAngle();
-			float speed=-1;
-			cameraTransform.setRotateY(angle+speed);
-		}
-		player.travel();
-		boolean touching=false;
-		for (double x=-player.getWidth()/1;x<=player.getWidth()/1;x+=0.5f) {
-			for (double y=-player.getHeight()/2f;y<=player.getHeight()/2f;y+=1) {
-				for (double z=-player.getWidth()/1;z<=player.getWidth()/1;z+=0.5f) {
-					AtomicBoolean collided = new AtomicBoolean(false);
-					boolean negativeX=!(player.getX()>=0);
-					boolean negativeZ=!(player.getZ()>=0);
-					BlockPos pos = new BlockPos(
-							(int) (player.getX()+(negativeX?-0.5f:0.5)+x),
-							-(int) (player.getY()+y),
-							(int) (player.getZ()+(negativeZ?-0.5f:0.5f)+z)
-					);
-					collided.set(world.blocks.getOrDefault(pos,null)!=null);
-					TestCollisionEvent event = new TestCollisionEvent(player, collided.get(),x,y,z);
-					boolean xCollision = Math.abs(x) > Math.abs(z);
-					boolean edgeX=
-							Math.abs(x)>=player.getWidth()/2f-0.1f||
-							Math.abs(z)>=player.getWidth()/2f-0.1f;
-					if (collided.get()) {
-						if (xCollision)
-							if (x>=0) {
-								event.collidedX=pos.x+x+(negativeX?-1.5:-1.5);
-							} else {
-								event.collidedX=pos.x+x+(negativeX?1.5f:1.5);
-							}
-						if (y<=0) {
-							event.collidedY=pos.y+y*2;
-						} else {
-							if (y>=-player.getHeight()/2f&&!edgeX) {
-								touching=true;
-							}
-							event.collidedY=pos.y+y*2;
-						}
-						if (!xCollision)
-							if (z>=0) {
-								event.collidedZ=pos.z+z+(negativeZ?-1.5:-1.5);
-							} else {
-								event.collidedZ=pos.z+z+(negativeZ?1.5f:1.5f);
-							}
-					}
-					bus.post(event);
-					if (!event.moddedDetection&&event.collided) {
-						if (Math.abs(y)<player.getHeight()/2f&& (
-							edgeX
-						)) {
-							if (Math.abs(x)!=Math.abs(z)) {
-								if (xCollision)
-									event.entity.setX(event.collidedX);
-								if (!xCollision)
-									event.entity.setZ(event.collidedZ);
-							}
-						} else if (!edgeX) {
-							event.entity.setY(-event.collidedY);
-							player.setMotionY(0);
-						}
-					}
+			ArrayList<Node> allItemNodes=new ArrayList<>();
+			if (item!=null)
+			item.constructBlock(new BlockPos(0,1280,0)).getModel(null,new BlockPos(0,0,0)).getAllElements().forEach((m)->allItemNodes.addAll(Arrays.asList(m.getNodes())));
+			allItemNodes.forEach((n)->{
+				n.setDepthTest(DepthTest.DISABLE);
+				if (n instanceof PointLight) {
+					n.setDisable(true);
+					((PointLight) n).setColor(Color.color(0,0,0,0));
+					n.setVisible(false);
 				}
-			}
+				if (n instanceof javafx.scene.shape.Box) {
+//					PhongMaterial material=(PhongMaterial)((javafx.scene.shape.Box)n).getMaterial();
+//					material.setSpecularMap(ImageLookup.images.get("game:inventory_specular"));
+//					material.setBumpMap(ImageLookup.images.get("game:inventory_specular"));
+//					((javafx.scene.shape.Box)n).setMaterial(material);
+				}
+			});
+			Group group1=new Group();
+			Group group3=new Group();
+			Group group4=new Group();
+			imageView.setDepthTest(DepthTest.DISABLE);
+			group2.getChildren().addAll(imageView);
+			group1.getChildren().addAll(allItemNodes);
+			group1.setTranslateZ(1);
+			group1.setScaleX(0.05f);
+			group1.setScaleY(0.05f);
+			group1.setScaleZ(0.05f);
+			group3.setRotate(22.5);
+			group3.setRotationAxis(new Point3D(1,0,0));
+			group3.getChildren().addAll(group1);
+			group1.setRotate(45);
+			group1.setRotationAxis(new Point3D(0,-1,0));
+			group3.setTranslateX(-0.5+i/7.725f);
+			group3.setTranslateY(0.89);
+			group4.getChildren().add(group3);
+			group4.setScaleZ(0.001f);
+			group4.setTranslateY(1280);
+			group2.getChildren().addAll(group4);
 		}
 		
-		player.onGround=touching;
+		int timei=new Date().getSeconds()+(new Date().getMinutes()*60)+((new Date().getHours()*60)*60);
+		float time=timei%360;
 		
-		if (keys.getOrDefault(KeyCode.SPACE,false)&&(player.onGround)) {
-			player.jump();
-		}
+		xoff=Math.cos(Math.toRadians(((timei%180)<time)?0:180));
+		double doub = Math.toRadians(2+(Math.cos(timei/360f)));
+		double xoff2=Math.cos(doub);
+		yoff=Math.cos(Math.toRadians(timei));
+		double yoff3=Math.cos(Math.toRadians(time*2));
+		yoff2=Math.sin(Math.toRadians(timei));
+		double yoff4=Math.sin(Math.toRadians(time*2));
+		zoff=Math.sin(Math.toRadians(0));
+		double zoff2=Math.sin(doub);
 		
-		if (keys.getOrDefault(KeyCode.R,false)) {
-//			player.setMotionY(0);
-			player.setY(-20);
-		}
+//		int sundist=230;
+//		for (int i=sundist;i<=sundist;i++) {
+//			double xsearch=(player.getX()*numbernumber)+(xoff*(Math.abs(yoff2)))*i;
+//			double ysearch=((player.getY()*numbernumber)+yoff*i);
+//			double zsearch=(player.getZ())*numbernumber+(zoff*(Math.abs(yoff2)))*i;
+//			int offset=0;
+//			double xsearch2=(player.getX()*numbernumber)+(xoff*(Math.abs(yoff2)))*(i+offset);
+//			double ysearch2=((player.getY()*numbernumber)+yoff*(i+offset));
+//			double zsearch2=(player.getZ()*numbernumber)+(zoff*(Math.abs(yoff2)))*(i+offset);
+//
+//			PointLight pl=new PointLight();
+//			PointLight pl3=new PointLight();
+//			PointLight pl2=new PointLight();
+//			pl.setColor(Color.color(1,1,0,20/255f));
+//			pl2.setColor(Color.color(0.5,0.5,0.5));
+//			pl3.setColor(Color.color(0.1,0.1,0.1,1));
+//			pl.setTranslateX(xsearch);
+//			pl3.setTranslateX(player.getX());
+//			pl3.setTranslateY(player.getY()-2);
+//			pl3.setTranslateZ(player.getZ());
+//			pl2.setTranslateX(xsearch2);
+//			pl.setTranslateY(ysearch);
+//			pl2.setTranslateY(ysearch2);
+//			pl.setTranslateZ(zsearch);
+//			pl2.setTranslateZ(zsearch2);
+//
+////			pl.setEffect(new Glow(1));
+//
+//			group.getChildren().addAll(
+////					pl
+////					,
+//					pl2
+//					,
+//					pl3
+//			);
+//		}
 		
-		scene.setFill(Color.SKYBLUE);
+		group2.setDepthTest(DepthTest.DISABLE);
+		group.getChildren().add(group2);
 		
-		cameraTransform.setRotateX(Math.max(-90,Math.min(90,cameraTransform.rx.getAngle())));
-		cameraTransform.setPivot(camera.getTranslateX(),camera.getTranslateY(),camera.getTranslateZ());
+		try {
+			group.getChildren().addAll(allNodes);
+		} catch (Throwable err) {}
+		group2.toFront();
 	}
 	
 	@Override
@@ -321,9 +396,28 @@ public class GameInstance extends Application {
 		super.stop();
 	}
 	
+	public static int hotbarSlot=0;
+	
+	public static final ArrayList<Item> blockslist=new ArrayList<>();
+	
 	@Override
 	public void start(Stage primaryStage) throws Exception {
 		r=new Robot();
+		
+		if (!devEnvro) {
+			gameDir=gameDir.substring(0,(gameDir.length()-("\\bin".length())));
+			System.out.println(gameDir);
+		}
+		
+		blockslist.addAll(Arrays.asList(
+				new Item(new CubeBlock(new BlockPos(0,0,0),"game:sand")),
+				new Item(new CubeBlock(new BlockPos(0,0,0),"game:stone")),
+				new Item(new CubeBlock(new BlockPos(0,0,0),"game:scorched_stone")),
+				new Item(new CubeBlock(new BlockPos(0,0,0),"game:sandstone")),
+				new Item(new CubeBlock(new BlockPos(0,0,0),"game:fine_sand")),
+				new Item(new CubeBlock(new BlockPos(0,0,0),"game:stone2")),
+				new Item(new GlowCubeBlock(new BlockPos(0,0,0),"game:glow_block"))
+		));
 		
 		camera.setNearClip(0.1);
 		camera.setFarClip(10000.0);
@@ -343,7 +437,7 @@ public class GameInstance extends Application {
 		
 		Random random=new Random();
 		HashMap<Point2D,Integer> elevated=new HashMap<>();
-		int width=16;
+		int width=64;
 		int maxHeight=32;
 		int hills=16;
 		for (int i=0;i<hills;i++) {
@@ -368,7 +462,7 @@ public class GameInstance extends Application {
 					if (y<=-2) {
 						world.setBlock(pos2,new CubeBlock(pos2,"game:scorched_stone"));
 					} else {
-						world.setBlock(pos2,new CubeBlock(pos2,"game:debug"));
+						world.setBlock(pos2,new CubeBlock(pos2,"game:stone"));
 					}
 				}
 			}
@@ -376,17 +470,20 @@ public class GameInstance extends Application {
 		
 		gameLoop.start();
 		
+		UIScene.setCamera(inversePlayer);
+		
 		scene.setFill(Color.LIGHTSKYBLUE);
 		scene.setCamera(camera);
 		scene.setOnMouseMoved(GameInstance::handleMouseMove);
-		scene.setOnMouseDragOver(GameInstance::handleMouseDrag);
+		scene.setOnMouseDragged(GameInstance::handleMouseMove);
 		scene.setOnKeyPressed(GameInstance::handleKeyPressed);
 		scene.setOnKeyReleased(GameInstance::handleKeyReleased);
-		
+		scene.setOnMousePressed(GameInstance::handleMousePress);
+		scene.setOnScroll(GameInstance::handleScroll);
 		primaryStage.setScene(scene);
 		
 		group.toFront();
-		group.getChildren().addAll(canvas);
+//		group.getChildren().addAll(canvas);
 		canvas.toFront();
 		
 		primaryStage.setTitle("FXyz3D Sample");
@@ -415,24 +512,86 @@ public class GameInstance extends Application {
 				i/=2;
 			}
 		}
-		return i/1;
+		return i;
 	}
 	
-	private static void handleMouseDrag(MouseDragEvent mouseDragEvent) {
+	private static void handleScroll(ScrollEvent scrollEvent) {
+		double dh=scrollEvent.getDeltaY()/40+scrollEvent.getDeltaX()/40;
+		hotbarSlot-=dh;
+		if (hotbarSlot<0) {
+			hotbarSlot+=10;
+		} else if (hotbarSlot>=10) {
+			hotbarSlot-=10;
+		}
+	}
+	
+	private static void handleMousePress(MouseEvent mouseEvent) {
+		if (mouseEvent.getPickResult().getIntersectedNode()!=null) {
+			System.out.println("h");
+			if (mouseEvent.getButton().equals(MouseButton.PRIMARY)) {
+				int xPos=(int)mouseEvent.getPickResult().getIntersectedNode().getTranslateX();
+				int yPos=(int)mouseEvent.getPickResult().getIntersectedNode().getTranslateY();
+				int zPos=(int)mouseEvent.getPickResult().getIntersectedNode().getTranslateZ();
+				
+				System.out.println(mouseEvent.getPickResult().getIntersectedTexCoord());
+				System.out.println(mouseEvent.getPickResult().getIntersectedPoint());
+				
+				Item item=null;
+				if (blockslist.size()>hotbarSlot) {
+					item=blockslist.get(hotbarSlot);
+				}
+				
+				double xoff=Math.cos(Math.toRadians(-cameraTransform.ry.getAngle()+90));
+				double yoff=Math.cos(Math.toRadians(cameraTransform.rx.getAngle()+90));
+				double yoff2=Math.sin(Math.toRadians(cameraTransform.rx.getAngle()+90));
+				double zoff=Math.sin(Math.toRadians(-cameraTransform.ry.getAngle()+90));
+				for (double i=0;i<=8;i+=0.1) {
+					double xsearch=player.getX()+(xoff*(Math.abs(yoff2)))*i;
+					double ysearch=(player.getY()+yoff*i)-player.getHeight()/2f+0.5f;
+					double zsearch=player.getZ()+(zoff*(Math.abs(yoff2)))*i;
+					boolean negativeX=!(xsearch>=0);
+					boolean negativeZ=!(zsearch>=0);
+					xsearch+=(negativeX?-0.5f:0.5);
+					zsearch+=(negativeZ?-0.5f:0.5);
+					if (world.getBlock(new BlockPos((int)xsearch,(int)-ysearch,(int)zsearch))!=null) {
+						for (double b=0;b<=2;b+=0.1) {
+							double xsearch2=player.getX()+(xoff*(Math.abs(yoff2)))*(i-b);
+							double ysearch2=(player.getY()+yoff*(i-b))-player.getHeight()/2f+1f;
+							double zsearch2=player.getZ()+(zoff*(Math.abs(yoff2)))*(i-b);
+							int xpos=(int)Math.round(((xsearch2+xsearch+xPos+xsearch2)/4f));
+							int ypos=(int)-Math.round(((ysearch2+ysearch+yPos+ysearch2)/4f));
+							int zpos=(int)Math.round(((zsearch2+zsearch+zPos+zsearch2)/4f));
+							if (world.getBlock(new BlockPos(xpos,ypos,zpos))==null) {
+								BlockPos pos1=new BlockPos(xpos,ypos,zpos);
+								if (item!=null)
+								GameInstance.world.setBlock(pos1,item.constructBlock(pos1));
+								break;
+							}
+						}
+						break;
+					}
+				}
+				
+//				BlockPos pos1=new BlockPos((int)(xPos),-(int)(yPos),(int)(zPos));
+//				GameInstance.world.setBlock(pos1,new CubeBlock(pos1,"game:sandstone"));
+			} else if (mouseEvent.getButton().equals(MouseButton.SECONDARY)) {
+				int xPos=(int)mouseEvent.getPickResult().getIntersectedNode().getTranslateX();
+				int yPos=(int)mouseEvent.getPickResult().getIntersectedNode().getTranslateY();
+				int zPos=(int)mouseEvent.getPickResult().getIntersectedNode().getTranslateZ();
+				BlockPos pos1=new BlockPos((int)(xPos),-(int)(yPos),(int)(zPos));
+				GameInstance.world.removeBlock(pos1);
+			}
+		}
 	}
 	
 	private static void handleMouseMove(MouseEvent mouseEvent) {
 		if (mouseAvailible) {
-			centerX=(int)(stage.getX()+(stage.getWidth()/2f));
-			centerY=(int)(stage.getY()+(stage.getHeight()/2f));
 			mouseAvailible=false;
 			double x=mouseEvent.getScreenX()-centerX;
 			double y=mouseEvent.getScreenY()-centerY;
 			cameraTransform.ry.setAngle(cameraTransform.ry.getAngle()+(x/25f));
 			cameraTransform.rx.setAngle(cameraTransform.rx.getAngle()+(y/-25f));
 			cameraTransform.rz.setAngle(0);
-			r.mouseMove(centerX,centerY);
-			r.waitForIdle();
 			mouseAvailible=true;
 		}
 	}
@@ -475,42 +634,59 @@ public class GameInstance extends Application {
 			GridPane grid = new GridPane();
 //		grid.setAlignment(Pos.CENTER);
 			
-			Scanner reader=new Scanner(new File(gameDir+"\\"+path));
+			File f=new File(gameDir+"\\"+path);
 			
-			String line1=reader.nextLine();
-			
-			int width=Integer.parseInt(line1.substring(0,line1.indexOf(',')));
-			int height=Integer.parseInt(line1.substring(line1.indexOf(',')+1));
-			Canvas canvas1=new Canvas(width,height);
-			GraphicsContext graphicsContext=canvas1.getGraphicsContext2D();
-			
-			int x=0;
-			int y=0;
-			try {
-//				while ((x*width)+(y*width)<=(width*height)) {
-				while (reader.hasNextLine()) {
-					API.utils.Color color=new API.utils.Color(Integer.parseInt(reader.nextLine()),true);
-					if (colors.containsKey(color)) {
-						graphicsContext.getPixelWriter().setColor(x,y,colors.get(color));
-					} else {
-						colors.put(color,Color.color(color.getRed()/255f,color.getGreen()/255f,color.getBlue()/255f));
-						graphicsContext.getPixelWriter().setColor(x,y,colors.get(color));
-					}
-					x++;
-					if (x>=width) {
-						x=0;
-						y++;
-					}
-				}
-			} catch (Throwable err) {
-				err.printStackTrace();
+			if (!f.getParentFile().exists()) {
+				f.getParentFile().mkdirs();
+				f.createNewFile();
+				return null;
 			}
 			
-			grid.add(canvas1,0,0);
-			
-			reader.close();
-			
-			return grid.snapshot(null, null);
+			if (f.exists()) {
+				Scanner reader=new Scanner(f);
+				
+				String line1=reader.nextLine();
+				
+				int width=Integer.parseInt(line1.substring(0,line1.indexOf(',')));
+				int height=Integer.parseInt(line1.substring(line1.indexOf(',')+1));
+				Canvas canvas1=new Canvas(width,height);
+				GraphicsContext graphicsContext=canvas1.getGraphicsContext2D();
+				
+				int x=0;
+				int y=0;
+				try {
+//				while ((x*width)+(y*width)<=(width*height)) {
+					while (reader.hasNextLine()) {
+						String s=reader.nextLine();
+						API.utils.Color color=new API.utils.Color(Integer.parseInt(s),true);
+						if (s.equals("0")) {
+							color=new API.utils.Color(color.getRed(),color.getBlue(),color.getGreen(),255);
+						}
+						if (colors.containsKey(color)) {
+							graphicsContext.getPixelWriter().setColor(y,x,colors.get(color));
+						} else {
+							colors.put(color,Color.color(color.getRed()/255f,color.getGreen()/255f,color.getBlue()/255f,color.getAlpha()/255f));
+							graphicsContext.getPixelWriter().setColor(y,x,colors.get(color));
+						}
+						x++;
+						if (x>=width) {
+							x=0;
+							y++;
+						}
+					}
+				} catch (Throwable err) {
+					err.printStackTrace();
+				}
+				
+				grid.add(canvas1,0,0);
+				
+				reader.close();
+				
+				return grid.snapshot(null, null);
+			} else {
+				f.createNewFile();
+			}
+			return null;
 		} catch (Throwable err) {
 			err.printStackTrace();
 		}

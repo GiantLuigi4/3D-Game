@@ -24,10 +24,4 @@ public class BlockPos {
 	public boolean equals(Object obj) {
 		return this.toString().equals(obj.toString())&&obj.getClass().equals(this.getClass());
 	}
-	
-	@Override
-	public int hashCode() {
-//		return x<<y<<z;
-		return 0;
-	}
 }

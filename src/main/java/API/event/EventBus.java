@@ -7,16 +7,16 @@ import java.util.function.Consumer;
 public class EventBus {
 	private final ArrayList<ListenerList<?>> listenerLists = new ArrayList<>();
 	
-	public <T extends Event> void addConsumer(Consumer<T> consumer) {
+	public <T extends Event> void addConsumer(IEventListener<T> consumer) {
 		AtomicBoolean foundListener= new AtomicBoolean(false);
 		listenerLists.forEach((l)->{
-			try {
+			if (l.type.equals(consumer.getTarget())) {
 				l.addConsumer(consumer);
 				foundListener.set(true);
-			} catch (Throwable err) {}
+			}
 		});
 		if (!foundListener.get()) {
-			listenerLists.add(new ListenerList<T>());
+			listenerLists.add(new ListenerList<T>(consumer.getTarget()));
 			listenerLists.get(listenerLists.size()-1).addConsumer(consumer);
 		}
 	}
