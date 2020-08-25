@@ -5,6 +5,10 @@ buildscript {
         maven {
             url = "http://maven.jzy3d.org/releases"
         }
+        //PERLIN NOISE
+        maven {
+            url = "https://modmaven.k-4u.nl/"
+        }
     }
 
     dependencies {
@@ -12,6 +16,9 @@ buildscript {
         classpath 'org.fxyz3d:fxyz3d:0.5.2'
         classpath 'org.fxyz3d:fxyz3d-importers:0.5.2'
         classpath 'org.fxyz3d:fxyz3d-client:0.5.2'
+
+        //PERLIN NOISE
+        classpath 'net.rgsw:noise:1.0.4'
 
         //ASM
         classpath 'org.ow2.asm:asm-all:6.0_BETA'
@@ -50,6 +57,9 @@ repositories {
     maven {
         url = "http://maven.jzy3d.org/releases"
     }
+    maven {
+        url = "https://modmaven.k-4u.nl/"
+    }
 }
 
 sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '11' // Need this here so eclipse task generates correctly.
@@ -61,6 +71,9 @@ dependencies {
     implementation 'org.fxyz3d:fxyz3d:0.5.2'
     implementation 'org.fxyz3d:fxyz3d-importers:0.5.2'
     implementation 'org.fxyz3d:fxyz3d-client:0.5.2'
+
+    //PERLIN NOISE
+    implementation 'net.rgsw:noise:1.0.4'
 
     //ASM
     implementation 'org.ow2.asm:asm-all:6.0_BETA'

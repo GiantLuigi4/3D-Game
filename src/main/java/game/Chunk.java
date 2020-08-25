@@ -10,37 +10,40 @@ import javafx.scene.paint.PhongMaterial;
 import org.fxyz3d.geometry.Vector3D;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class Chunk {
-	private final StringyHashMap<BlockPos,Block> blocks=new StringyHashMap<>();
+	private final Block[] blocks=new Block[size*size*size];
 	public final ChunkPos pos;
 	public final World world;
-	protected static final int size=4;
+	protected static final int size=32;
 	
 	public Chunk(ChunkPos pos,World world) {
 		this.pos = pos;
 		this.world = world;
+		Arrays.fill(blocks, null);
 	}
 	
 	public Block getBlock(BlockPos pos) {
-		return blocks.get(methodToName(pos));
+		BlockPos pos1=methodToName(pos);
+		return blocks[getIndexFromPos(pos1)];
 	}
 	
 	public void setBlock(BlockPos pos, Block block) {
 		BlockPos pos1=methodToName(pos);
-		if (blocks.containsKey(pos1)) {
-			blocks.get(pos1).onRemove(world);
+		if (blocks[getIndexFromPos(pos1)]!=null) {
+			blocks[getIndexFromPos(pos1)].onRemove(world);
 			if (block!=null) {
-				blocks.add(pos1,block);
+				blocks[getIndexFromPos(pos1)]=block;
 			}
 		} else {
 			if (block!=null) {
-				blocks.add(pos1,block);
+				blocks[getIndexFromPos(pos1)]=block;
 			}
 		}
-		if (block==null) blocks.remove(pos1);
+		if (block==null) blocks[getIndexFromPos(pos1)]=null;
 		if (block!=null) block.onPlace(world);
 	}
 	
@@ -49,9 +52,13 @@ public class Chunk {
 		return new BlockPos(Math.abs(pos1.x)%size,Math.abs(pos1.y)%size,Math.abs(pos1.z)%size);
 	}
 	
+	private int getIndexFromPos(BlockPos pos) {
+		return (pos.x)+(pos.y*size)+(pos.z*size*size);
+	}
+	
 	public Model bakeModel() {
 		Model mdl=new Model();
-		blocks.objects.iterator().forEachRemaining((b)-> {
+		Arrays.asList(blocks).forEach((b)-> {
 			if (b != null) {
 				Model mdl2 = b.getModel(world, b.pos);
 				if (mdl2 != null) {

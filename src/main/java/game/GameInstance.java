@@ -27,6 +27,7 @@ import javafx.stage.Stage;
 import org.fxyz3d.geometry.Vector3D;
 import org.fxyz3d.shapes.primitives.SegmentedSphereMesh;
 import org.fxyz3d.utils.CameraTransformer;
+import net.rgsw.ptg.noise.perlin.*;
 
 import java.awt.Robot;
 import java.io.File;
@@ -435,29 +436,17 @@ public class GameInstance extends Application {
 		cameraTransform.rz.setAngle(0);
 		cameraTransform.setPivot(0,0,0);
 		
-		Random random=new Random();
-		HashMap<Point2D,Integer> elevated=new HashMap<>();
-		int width=64;
-		int maxHeight=32;
-		int hills=16;
-		for (int i=0;i<hills;i++) {
-//			elevated.put(
-//					new Point2D(
-//							random.nextInt(width*2)-(width),
-//							random.nextInt(width*2)-(width)
-//					),
-//					32
-//			);
-		}
+		int width=128;
+		
+		Perlin2D perlin=new Perlin2D(372483274,255,255);
+		Perlin2D perlin2=new Perlin2D(874234,255,255);
 		
 		ImageLookup.loadImages();
 		for (int x=width/-2;x<=width/2;x++) {
 			for (int z=width/-2;z<=width/2;z++) {
-				boolean isEdge=Math.abs(x)+2==width/2||Math.abs(z)+2==width/2;
-//				BlockPos pos=new BlockPos(x,getHeight(x,z,elevated)/16,z);
-				BlockPos pos=new BlockPos(x,isEdge?3:0,z);
+				BlockPos pos=new BlockPos(x,((int)(perlin.generate(x,z)*perlin2.generate(z,x)*420)),z);
 				world.setBlock(pos,new CubeBlock(pos,"game:fine_sand"));
-				for (int y=pos.y-1;y>=0;y--) {
+				for (int y=pos.y-1;y>=12800;y--) {
 					BlockPos pos2=new BlockPos(x,y,z);
 					if (y<=-2) {
 						world.setBlock(pos2,new CubeBlock(pos2,"game:scorched_stone"));
@@ -527,14 +516,13 @@ public class GameInstance extends Application {
 	
 	private static void handleMousePress(MouseEvent mouseEvent) {
 		if (mouseEvent.getPickResult().getIntersectedNode()!=null) {
-			System.out.println("h");
 			if (mouseEvent.getButton().equals(MouseButton.PRIMARY)) {
 				int xPos=(int)mouseEvent.getPickResult().getIntersectedNode().getTranslateX();
 				int yPos=(int)mouseEvent.getPickResult().getIntersectedNode().getTranslateY();
 				int zPos=(int)mouseEvent.getPickResult().getIntersectedNode().getTranslateZ();
 				
-				System.out.println(mouseEvent.getPickResult().getIntersectedTexCoord());
-				System.out.println(mouseEvent.getPickResult().getIntersectedPoint());
+//				System.out.println(mouseEvent.getPickResult().getIntersectedTexCoord());
+//				System.out.println(mouseEvent.getPickResult().getIntersectedPoint());
 				
 				Item item=null;
 				if (blockslist.size()>hotbarSlot) {
@@ -554,7 +542,7 @@ public class GameInstance extends Application {
 					xsearch+=(negativeX?-0.5f:0.5);
 					zsearch+=(negativeZ?-0.5f:0.5);
 					if (world.getBlock(new BlockPos((int)xsearch,(int)-ysearch,(int)zsearch))!=null) {
-						for (double b=0;b<=2;b+=0.1) {
+						for (double b=0;b<=2;b+=0.01) {
 							double xsearch2=player.getX()+(xoff*(Math.abs(yoff2)))*(i-b);
 							double ysearch2=(player.getY()+yoff*(i-b))-player.getHeight()/2f+1f;
 							double zsearch2=player.getZ()+(zoff*(Math.abs(yoff2)))*(i-b);
